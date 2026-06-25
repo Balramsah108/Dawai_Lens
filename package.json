@@ -1,0 +1,16 @@
+{
+  "name": "dawai-lens",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
