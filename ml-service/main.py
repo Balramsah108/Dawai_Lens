@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
+from src.models.schemas import DrugEntry, ExtractionResult, PriceRecord
 
 load_dotenv()
 
