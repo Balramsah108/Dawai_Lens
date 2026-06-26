@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate:up": "node-pg-migrate up --migrations-dir src/db/migrations --database-url-var DATABASE_URL",
+    "migrate:down": "node-pg-migrate down --migrations-dir src/db/migrations --database-url-var DATABASE_URL",
+    "migrate:create": "node-pg-migrate create --migrations-dir src/db/migrations"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +20,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.2.0",
+    "node-pg-migrate": "^8.0.4",
     "pg": "^8.22.0"
   },
   "devDependencies": {
