@@ -2,6 +2,7 @@
 // TODO: Replace with Firebase token verification later
 
 import { Request, Response, NextFunction } from 'express';
+import { createHash } from 'crypto';
 
 export interface AuthUser {
   id: string;
@@ -26,7 +27,10 @@ export const requireAuth = (
   if (process.env.NODE_ENV === 'development') {
     const devUserId = req.headers['x-dev-user-id'] as string;
     if (devUserId) {
-      req.user = { id: devUserId, phone: '9999999999' };
+      // Convert any string into a deterministic UUID so PostgreSQL accepts it
+      const hash = createHash('md5').update(devUserId).digest('hex');
+      const uuid = `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
+      req.user = { id: uuid, phone: '9999999999' };
       next();
       return;
     }

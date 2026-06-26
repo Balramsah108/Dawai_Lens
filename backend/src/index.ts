@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import pool from './db/db.js';
 import uploadRouter from './routes/upload.js'; 
+import prescriptionsRouter from './routes/prescriptions.js';
 
 dotenv.config();
 
@@ -14,6 +15,8 @@ app.use('/uploads', express.static('uploads'));
 
 // Routes
 app.use('/api/v1', uploadRouter); 
+app.use('/api/v1/prescriptions', prescriptionsRouter);
+
 
 app.get('/health', async (_req, res) => {
   try {
