@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { upload, getFileUrl } from '../utils/storage.js';
+import { requireAuth } from '../middlewares/auth.js';
 
 const router = Router();
 
 router.post(
   '/upload',
+  requireAuth,
   upload.single('prescription'),
   (req: Request, res: Response) => {
     if (!req.file) {
@@ -16,6 +18,7 @@ router.post(
 
     res.json({
       message: 'File uploaded successfully',
+      uploaded_by:req.user?.id,
       file_url: getFileUrl(req.file.filename),
       original_name: req.file.originalname,
       size_bytes: req.file.size,
