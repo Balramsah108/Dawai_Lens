@@ -35,3 +35,11 @@ __pycache__/
 .Python
 venv/
 .venv/
+
+# Python ML service
+ml-service/venv/
+ml-service/__pycache__/
+ml-service/.env
+ml-service/**/__pycache__/
+.vs/
+
