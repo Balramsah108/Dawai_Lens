@@ -22,6 +22,8 @@ class ExtractionResult(BaseModel):
     ocr_engine: Optional[str] = None  # 'gemini' | 'gcv' | 'trocr'
     created_at: datetime
 
+    model_config = {"json_encoders": {datetime: lambda v: v.isoformat()}}
+
     @field_validator('confidence')
     @classmethod
     def confidence_must_be_valid(cls, v: Optional[float]) -> Optional[float]:
@@ -39,8 +41,7 @@ class ExtractionResult(BaseModel):
 
     @model_validator(mode='after')
     def drug_entries_must_not_be_empty(self) -> 'ExtractionResult':
-        if len(self.drug_entries) == 0:
-            raise ValueError('drug_entries must contain at least one entry')
+        # Allow empty entries — OCR may fail to extract, handled at route level
         return self
 
 

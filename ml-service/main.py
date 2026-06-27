@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from dotenv import load_dotenv
-from src.models.schemas import DrugEntry, ExtractionResult, PriceRecord
+from src.routes.ocr import router as ocr_router
 
 load_dotenv()
 
@@ -9,6 +11,23 @@ app = FastAPI(
     description="OCR pipeline and drug normalization",
     version="0.1.0"
 )
+
+# Custom validation error handler — fixes FastAPI bytes serialization bug
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for error in exc.errors():
+        errors.append({
+            "loc": [str(l) for l in error.get("loc", [])],
+            "msg": error.get("msg", ""),
+            "type": error.get("type", ""),
+        })
+    return JSONResponse(
+        status_code=422,
+        content={"detail": errors},
+    )
+
+app.include_router(ocr_router, prefix="/api/v1")
 
 @app.get("/health")
 def health():
