@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import pool from '../db/db.js';
 import { getFileUrl, deleteFile } from '../utils/storage.js';
+import { extractPrescription } from '../utils/mlClient.js';
+import path from 'path';
 
 // POST /api/v1/prescriptions
 // Saves the uploaded file info to the DB
@@ -12,7 +14,7 @@ export const createPrescription = async (req: Request, res: Response): Promise<v
       });
       return;
     }
-
+    console.log("req", req.user);
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({
@@ -22,11 +24,13 @@ export const createPrescription = async (req: Request, res: Response): Promise<v
     }
 
     // Ensure user exists in DB (dev mode auto-creates)
+    // Use last 10 digits of userId hash as unique dev phone
+    const devPhone = userId.replace(/-/g, '').slice(-10);
     await pool.query(
       `INSERT INTO users (id, phone, firebase_uid)
        VALUES ($1, $2, $3)
        ON CONFLICT (id) DO NOTHING`,
-      [userId, req.user?.phone ?? '9999999999', userId]
+      [userId, devPhone, userId]
     );
 
     // Get profile_id from body, fall back to primary profile
@@ -68,14 +72,43 @@ export const createPrescription = async (req: Request, res: Response): Promise<v
       uploaded_at: string;
     };
 
+    // Call ML service for OCR (async — don't block the response)
+    const uploadDir = process.env.UPLOAD_DIR ?? './uploads';
+    const absolutePath = path.isAbsolute(uploadDir)
+      ? path.join(uploadDir, prescription.file_path)
+      : path.join(process.cwd(), uploadDir, prescription.file_path);
+
+    // Save extraction result to DB in background
+    console.log(`🔍 Starting OCR for: ${absolutePath}`);
+    extractPrescription(absolutePath, prescription.id)
+      .then(async (extractionResult) => {
+        console.log(`📋 OCR result:`, JSON.stringify(extractionResult.drug_entries));
+        await pool.query(
+          `INSERT INTO extraction_results 
+           (prescription_id, drug_entries, confidence, ocr_engine)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            prescription.id,
+            JSON.stringify(extractionResult.drug_entries),
+            extractionResult.confidence,
+            extractionResult.ocr_engine,
+          ]
+        );
+        console.log(`✅ OCR complete for prescription ${prescription.id}`);
+      })
+      .catch((err: unknown) => {
+        console.error(`❌ OCR failed for prescription ${prescription.id}:`, err);
+      });
+
+    // Return immediately — OCR happens in background
     res.status(201).json({
       prescription_id: prescription.id,
       file_url: getFileUrl(prescription.file_path),
       uploaded_at: prescription.uploaded_at,
       profile_id: profileId,
-      // task_id will be added when OCR is implemented
-      task_id: null,
+      status: 'processing', // OCR is running in background
     });
+
   } catch (err) {
     console.error('createPrescription error:', err);
     res.status(500).json({
@@ -112,6 +145,57 @@ export const getPrescriptionImage = async (req: Request, res: Response): Promise
     });
   }
 };
+
+// GET /api/v1/prescriptions/:id/extraction
+export const getExtractionResult = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params as { id: string };
+
+    // Verify ownership
+    const prescriptionCheck = await pool.query(
+      'SELECT id FROM prescriptions WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+
+    if (prescriptionCheck.rows.length === 0) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Prescription not found.' } });
+      return;
+    }
+
+    // Get extraction result
+    const result = await pool.query(
+      'SELECT * FROM extraction_results WHERE prescription_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      res.json({ status: 'processing', drug_entries: null });
+      return;
+    }
+
+    const row = result.rows[0] as {
+      id: string;
+      drug_entries: unknown;
+      confidence: string;
+      ocr_engine: string;
+      created_at: string;
+    };
+
+    res.json({
+      status: 'done',
+      extraction_id: row.id,
+      drug_entries: row.drug_entries,
+      confidence: row.confidence,
+      ocr_engine: row.ocr_engine,
+      created_at: row.created_at,
+    });
+  } catch (err) {
+    console.error('getExtractionResult error:', err);
+    res.status(500).json({ error: { code: 'SERVER_ERROR', message: 'Something went wrong.' } });
+  }
+};
+
 
 // DELETE /api/v1/prescriptions/:id
 export const deletePrescription = async (req: Request, res: Response): Promise<void> => {

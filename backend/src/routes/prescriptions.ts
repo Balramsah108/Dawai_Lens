@@ -5,6 +5,7 @@ import {
   createPrescription,
   getPrescriptionImage,
   deletePrescription,
+  getExtractionResult
 } from '../controllers/prescriptionController.js';
 
 const router = Router();
@@ -16,6 +17,8 @@ router.post(
   upload.single('prescription'),
   createPrescription
 );
+
+router.get('/:id/extraction', requireAuth, getExtractionResult);
 
 // GET /api/v1/prescriptions/:id/image — get image URL
 router.get('/:id/image', requireAuth, getPrescriptionImage);

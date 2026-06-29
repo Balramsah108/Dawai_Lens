@@ -26,17 +26,21 @@ export const requireAuth = (
   // In dev mode: accept a simple header x-dev-user-id
   if (process.env.NODE_ENV === 'development') {
     const devUserId = req.headers['x-dev-user-id'] as string;
+    console.log("========================", devUserId)
     if (devUserId) {
+      
       // Convert any string into a deterministic UUID so PostgreSQL accepts it
       const hash = createHash('md5').update(devUserId).digest('hex');
       const uuid = `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
-      req.user = { id: uuid, phone: '9999999999' };
+      req.user = { id: uuid, phone: uuid.replace(/-/g, '').slice(-10) };
       next();
       return;
     }
   }
 
   // No auth provided
+    console.log("========================")
+
   res.status(401).json({
     error: {
       code: 'UNAUTHENTICATED',
