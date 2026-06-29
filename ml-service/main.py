@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from dotenv import load_dotenv
 from src.routes.ocr import router as ocr_router
+from src.routes.normalize import router as normalize_router
 
 load_dotenv()
 
@@ -28,6 +29,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 app.include_router(ocr_router, prefix="/api/v1")
+app.include_router(normalize_router, prefix="/api/v1")
 
 @app.get("/health")
 def health():
